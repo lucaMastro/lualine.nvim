@@ -1,6 +1,6 @@
 -- Copyright (c) 2020-2021 hoob3rt
 -- MIT license, see LICENSE for more details.
-local lualine_require = require('lualine_require')
+local lualine_require = require 'lualine_require'
 local modules = lualine_require.lazy_require {
   default_config = 'lualine.components.diagnostics.config',
   sources = 'lualine.components.diagnostics.sources',
@@ -19,7 +19,6 @@ function M:init(options)
   -- Run super()
   M.super.init(self, options)
   -- Apply default options
-  modules.default_config.apply_default_colors(self.options)
   self.options = vim.tbl_deep_extend('keep', self.options or {}, modules.default_config.options)
   -- Apply default symbols
   self.symbols = vim.tbl_extend(
@@ -31,27 +30,78 @@ function M:init(options)
   -- Initialize highlight groups
   if self.options.colored then
     self.highlight_groups = {
-      error = self:create_hl(self.options.diagnostics_color.error, 'error'),
-      warn = self:create_hl(self.options.diagnostics_color.warn, 'warn'),
-      info = self:create_hl(self.options.diagnostics_color.info, 'info'),
-      hint = self:create_hl(self.options.diagnostics_color.hint, 'hint'),
+      error = modules.highlight.create_component_highlight_group(
+        self.options.diagnostics_color.error,
+        'diagnostics_error',
+        self.options
+      ),
+      warn = modules.highlight.create_component_highlight_group(
+        self.options.diagnostics_color.warn,
+        'diagnostics_warn',
+        self.options
+      ),
+      info = modules.highlight.create_component_highlight_group(
+        self.options.diagnostics_color.info,
+        'diagnostics_info',
+        self.options
+      ),
+      hint = modules.highlight.create_component_highlight_group(
+        self.options.diagnostics_color.hint,
+        'diagnostics_hint',
+        self.options
+      ),
     }
   end
 
+  -- Error out no source
+  if #self.options.sources < 1 then
+    print 'no sources for diagnostics configured'
+    return ''
+  end
+  if vim.fn.has 'nvim-0.6' == 1 then
+    for i, name in ipairs(self.options.sources) do
+      if name == 'nvim_lsp' then
+        self.options.sources[i] = 'nvim_diagnostic'
+        modules.utils_notices.add_notice [[
+### diagnostics.source
+Diagnostics source `nvim_lsp` has been deprecated in favour of `nvim_diagnostic`.
+nvim_diagnostic shows diagnostics from neovim's diagnostics api
+while nvim_lsp used to only show lsp diagnostics.
+
+You've something like this your config.
+```lua
+  {'diagnostics', sources = {'nvim_lsp'}}
+```
+It needs to be updated to:
+```lua
+  {'diagnostics', sources = {'nvim_diagnostic'}}
+```
+]]
+      elseif name == 'nvim' then
+        self.options.sources[i] = 'nvim_diagnostic'
+        modules.utils_notices.add_notice [[
+### diagnostics.source
+Diagnostics source `nvim` has been renamed to `nvim_diagnostic`
+
+You've something like this your config.
+```lua
+  {'diagnostics', sources = {'nvim'}}
+```
+It needs to be updated to:
+```lua
+  {'diagnostics', sources = {'nvim_diagnostic'}}
+```
+]]
+      end
+    end
+  end
   -- Initialize variable to store last update so we can use it in insert
   -- mode for no update_in_insert
   self.last_diagnostics_count = {}
-
-  -- Error out no source
-  if #self.options.sources < 1 then
-    modules.utils_notices.add_notice(
-      '### diagnostics.sources\n\nno sources for diagnostics configured.\nPlease specify which diagnostics source you want lualine to use with `sources` option.\n'
-    )
-  end
 end
 
 function M:update_status()
-  local bufnr = vim.api.nvim_get_current_buf()
+  local bufnr = vim.fn.bufnr()
   local diagnostics_count
   local result = {}
   if self.options.update_in_insert or vim.api.nvim_get_mode().mode:sub(1, 1) ~= 'i' then
@@ -85,17 +135,13 @@ function M:update_status()
 
   -- format the counts with symbols and highlights
   if self.options.colored then
-    local colors, bgs = {}, {}
+    local colors = {}
     for name, hl in pairs(self.highlight_groups) do
-      colors[name] = self:format_hl(hl)
-      bgs[name] = modules.utils.extract_highlight_colors(colors[name]:match('%%#(.-)#'), 'bg')
+      colors[name] = modules.highlight.component_format_highlight(hl)
     end
-    local previous_section, padding
     for _, section in ipairs(self.options.sections) do
       if diagnostics_count[section] ~= nil and (always_visible or diagnostics_count[section] > 0) then
-        padding = previous_section and (bgs[previous_section] ~= bgs[section]) and ' ' or ''
-        previous_section = section
-        table.insert(result, colors[section] .. padding .. self.symbols[section] .. diagnostics_count[section])
+        table.insert(result, colors[section] .. self.symbols[section] .. diagnostics_count[section])
       end
     end
   else

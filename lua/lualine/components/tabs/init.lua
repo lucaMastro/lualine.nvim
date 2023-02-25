@@ -1,9 +1,9 @@
 -- Copyright (c) 2020-2021 shadmansaleh
 -- MIT license, see LICENSE for more details.
 local require = require('lualine_require').require
-local Tab = require('lualine.components.tabs.tab')
+local Tab = require 'lualine.components.tabs.tab'
 local M = require('lualine.component'):extend()
-local highlight = require('lualine.highlight')
+local highlight = require 'lualine.highlight'
 
 local default_options = {
   max_length = 0,
@@ -15,7 +15,7 @@ local default_options = {
 }
 
 -- This function is duplicated in buffers
----returns the proper hl for tab in section. Used for setting default highlights
+---returns the proper hl for tab in section. used for setting default highlights
 ---@param section string name of section tabs component is in
 ---@param is_active boolean
 ---@return string hl name
@@ -35,22 +35,30 @@ end
 function M:init(options)
   M.super.init(self, options)
   default_options.tabs_color = {
-    active = get_hl('lualine_' .. options.self.section, true),
-    inactive = get_hl('lualine_' .. options.self.section, false),
+    active = get_hl(options.self.section, true),
+    inactive = get_hl(options.self.section, false),
   }
   self.options = vim.tbl_deep_extend('keep', self.options or {}, default_options)
   -- stylua: ignore
   self.highlights = {
-    active = self:create_hl( self.options.tabs_color.active, 'active'),
-    inactive = self:create_hl( self.options.tabs_color.inactive, 'inactive'),
+    active = highlight.create_component_highlight_group(
+      self.options.tabs_color.active,
+      'tabs_active',
+      self.options
+    ),
+    inactive = highlight.create_component_highlight_group(
+      self.options.tabs_color.inactive,
+      'tabs_active',
+      self.options
+    ),
   }
 end
 
 function M:update_status()
   local data = {}
   local tabs = {}
-  for nr, id in ipairs(vim.api.nvim_list_tabpages()) do
-    tabs[#tabs + 1] = Tab { tabId = id, tabnr = nr, options = self.options, highlights = self.highlights }
+  for t = 1, vim.fn.tabpagenr '$' do
+    tabs[#tabs + 1] = Tab { tabnr = t, options = self.options, highlights = self.highlights }
   end
   -- mark the first, last, current, before current, after current tabpages
   -- for rendering
@@ -84,13 +92,8 @@ function M:update_status()
   local current_tab = tabs[current]
   -- start drawing from current tab and draw left and right of it until
   -- all tabpages are drawn or max_length has been reached.
-  if current_tab == nil then -- maybe redundant code
-    local t = Tab {
-      tabId = vim.api.nvim_get_current_tabpage(),
-      tabnr = vim.fn.tabpagenr(),
-      options = self.options,
-      highlights = self.highlights,
-    }
+  if current_tab == nil then -- maybe redundent code
+    local t = Tab { tabnr = vim.fn.tabpagenr(), options = self.options, highlights = self.highlights }
     t.current = true
     t.last = true
     data[#data + 1] = t:render()
@@ -126,7 +129,7 @@ function M:update_status()
         data[#data + 1] = rendered_after
       end
     end
-    -- draw ellipsis (...) on relevant sides if all tabs don't fit in max_length
+    -- draw elipsis (...) on relevent sides if all tabs don't fit in max_length
     if total_length > max_length then
       if before ~= nil then
         before.ellipse = true
@@ -160,21 +163,10 @@ function M:draw()
   return self.status
 end
 
-vim.cmd([[
+vim.cmd [[
   function! LualineSwitchTab(tabnr, mouseclicks, mousebutton, modifiers)
     execute a:tabnr . "tabnext"
   endfunction
-
-  function! LualineRenameTab(...)
-    if a:0 == 1
-      let t:tabname = a:1
-    else
-      unlet t:tabname
-    end
-    redrawtabline
-  endfunction
-
-  command! -nargs=? LualineRenameTab call LualineRenameTab("<args>")
-]])
+]]
 
 return M

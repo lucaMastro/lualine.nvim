@@ -1,5 +1,5 @@
 local require = require('lualine_require').require
-local utils = require('lualine.utils.utils')
+local utils = require 'lualine.utils.utils'
 local M = {}
 
 -- default symbols for diagnostics component
@@ -18,42 +18,38 @@ M.options = {
   colored = true,
   update_in_insert = false,
   always_visible = false,
-  sources = { vim.fn.has('nvim-0.6') == 1 and 'nvim_diagnostic' or 'nvim_lsp', 'coc' },
+  sources = { vim.fn.has 'nvim-0.6' == 1 and 'nvim_diagnostic' or 'nvim_lsp', 'coc' },
   sections = { 'error', 'warn', 'info', 'hint' },
-}
-
-function M.apply_default_colors(opts)
-  local default_diagnostics_color = {
+  diagnostics_color = {
     error = {
       fg = utils.extract_color_from_hllist(
-        { 'fg', 'sp' },
+        'fg',
         { 'DiagnosticError', 'LspDiagnosticsDefaultError', 'DiffDelete' },
         '#e32636'
       ),
     },
     warn = {
       fg = utils.extract_color_from_hllist(
-        { 'fg', 'sp' },
+        'fg',
         { 'DiagnosticWarn', 'LspDiagnosticsDefaultWarning', 'DiffText' },
         '#ffa500'
       ),
     },
     info = {
       fg = utils.extract_color_from_hllist(
-        { 'fg', 'sp' },
+        'fg',
         { 'DiagnosticInfo', 'LspDiagnosticsDefaultInformation', 'Normal' },
         '#ffffff'
       ),
     },
     hint = {
       fg = utils.extract_color_from_hllist(
-        { 'fg', 'sp' },
+        'fg',
         { 'DiagnosticHint', 'LspDiagnosticsDefaultHint', 'DiffChange' },
         '#273faf'
       ),
     },
-  }
-  opts.diagnostics_color = vim.tbl_deep_extend('keep', opts.diagnostics_color or {}, default_diagnostics_color)
-end
+  },
+}
 
 return M

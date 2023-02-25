@@ -1,7 +1,7 @@
 -- Copyright (c) 2020-2021 shadmansaleh
 -- MIT license, see LICENSE for more details.
 
---- wrapper around job api
+--- wrapper arround job api
 --- creates a job handler when called
 local Job = setmetatable({
   --- start the job
@@ -9,7 +9,7 @@ local Job = setmetatable({
     self.job_id = vim.fn.jobstart(self.args.cmd, self.args)
     return self.job_id > 0
   end,
-  --- stop the job. Also immediately disables io from the job.
+  --- stop the job. also imidiately disables io from the job.
   stop = function(self)
     if self.killed then
       return
@@ -44,9 +44,9 @@ local Job = setmetatable({
     end
     self.__index = self
     local job = setmetatable({ args = args }, self)
-    job:wrap_cb_alive('on_stdout')
-    job:wrap_cb_alive('on_stderr')
-    job:wrap_cb_alive('on_stdin')
+    job:wrap_cb_alive 'on_stdout'
+    job:wrap_cb_alive 'on_stderr'
+    job:wrap_cb_alive 'on_stdin'
     return job
   end,
 })

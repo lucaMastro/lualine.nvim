@@ -274,13 +274,10 @@ local color_table = {
 }
 -- stylua: ignore end
 
----converts #rrggbb formatted color to cterm ('0'-'255') color
+---converts #rrggbb fomated color to cterm ('0'-'255') color
 ---@param hex_color string
 ---@return string
 function M.rgb2cterm(hex_color)
-  if hex_color == 'None' then
-    return 'None'
-  end
   local function get_color_distance(color1, color2)
     -- returns how much color2 deviates from color1
     local dr = math.abs(color1[1] - color2[1]) / (color1[1] + 1) * 100
@@ -306,7 +303,7 @@ function M.rgb2cterm(hex_color)
   return closest_cterm_color
 end
 
----converts color name (only ones supported by neovim) formatted colors to #rrggbb
+---converts color name (only ones supported by neovim) formated colors to #rrggbb
 ---@param name string like red,green,grey
 ---@return string
 function M.color_name2rgb(name)

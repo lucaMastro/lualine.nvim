@@ -1,25 +1,24 @@
 -- Copyright (c) 2020-2021 hoob3rt
 -- MIT license, see LICENSE for more details.
 
-local lualine_require = require('lualine_require')
+local lualine_require = require 'lualine_require'
 local require = lualine_require.require
 local modules = lualine_require.lazy_require {
   utils = 'lualine.utils.utils',
   notice = 'lualine.utils.notices',
-  fn_store = 'lualine.utils.fn_store',
 }
 local is_valid_filename = lualine_require.is_valid_filename
 local sep = lualine_require.sep
 
 --- function that loads specific type of component
 local component_types = {
-  -- loads custom component
+  -- loads custion component
   custom = function(component)
     return component[1](component)
   end,
   --- loads lua functions as component
   lua_fun = function(component)
-    return require('lualine.components.special.function_component')(component)
+    return require 'lualine.components.special.function_component'(component)
   end,
   --- loads lua modules as components (ones in /lua/lualine/components/)
   mod = function(component)
@@ -30,7 +29,7 @@ local component_types = {
         loaded_component = loaded_component(component)
       elseif type(loaded_component) == 'function' then
         component[1] = loaded_component
-        loaded_component = require('lualine.components.special.function_component')(component)
+        loaded_component = require 'lualine.components.special.function_component'(component)
       end
       return loaded_component
     end
@@ -41,19 +40,19 @@ local component_types = {
     component[1] = function()
       return stl_expr
     end
-    return require('lualine.components.special.function_component')(component)
+    return require 'lualine.components.special.function_component'(component)
   end,
-  --- loads variables & options (g:,go:,b:,bo:...) as components
+  --- loads variables & options (g:,go:,b:,bo:...) as componenta
   var = function(component)
-    return require('lualine.components.special.vim_var_component')(component)
+    return require 'lualine.components.special.vim_var_component'(component)
   end,
   --- loads vim functions and lua expressions as components
   ['_'] = function(component)
-    return require('lualine.components.special.eval_func_component')(component)
+    return require 'lualine.components.special.eval_func_component'(component)
   end,
 }
 
----load a component from component config
+---load a component from component confif
 ---@param component table component + component options
 ---@return table the loaded & initialized component
 local function component_loader(component)
@@ -81,7 +80,7 @@ component type '%s' isn't recognised. Check if spelling is correct.]],
       return loaded_component
     elseif string.char(component[1]:byte(1)) == '%' then
       return component_types.stl(component)
-    elseif component[1]:find('[gvtwb]?o?:') == 1 then
+    elseif component[1]:find '[gvtwb]?o?:' == 1 then
       return component_types.var(component)
     else
       return component_types['_'](component)
@@ -91,8 +90,46 @@ component type '%s' isn't recognised. Check if spelling is correct.]],
   end
 end
 
+local function option_deprecatation_notice(component)
+  local types = {
+    type_name = function()
+      local changed_to = component.type == 'luae' and 'lua_expr' or 'vim_fun'
+      modules.notice.add_notice(string.format(
+        [[
+### option.type.%s
+
+type name `%s` has been deprecated.
+Please use `%s`.
+
+You have some thing like this in your config config for %s component:
+
+```lua
+  type = %s,
+```
+
+You'll have to change it to this to retain old behavior:
+
+```lua
+  type = %s
+```
+]],
+        component.type,
+        component.type,
+        changed_to,
+        tostring(component[1]),
+        component.type,
+        changed_to
+      ))
+      component.type = changed_to
+    end,
+  }
+  if component.type == 'luae' or component.type == 'vimf' then
+    types.type_name()
+  end
+end
+
 --- Shows notice about invalid types passed as component
---- @param index number the index of component in section table
+--- @param index number the index of component jn section table
 --- @param component table containing component elements
 --- return bool whether check passed or not
 local function is_valid_component_type(index, component)
@@ -111,7 +148,7 @@ Something like:
 
 This commonly occurs when you forget to pass table with option for component.
 When a component has option that component needs to be a table which holds
-the component as first element and the options as key value pairs.
+the component as first element and the options as key value paris.
 For example:
 ```lua
 lualine_c = {
@@ -142,9 +179,10 @@ local function load_sections(sections, options)
       end
       if is_valid_component_type(index, component) then
         component.self = {}
-        component.self.section = section_name:match('lualine_(.*)')
+        component.self.section = section_name
         -- apply default args
         component = vim.tbl_extend('keep', component, options)
+        option_deprecatation_notice(component)
         section[index] = component_loader(component)
       end
     end
@@ -154,22 +192,29 @@ end
 ---loads all the configs (active, inactive, tabline)
 ---@param config table user config
 local function load_components(config)
-  local sec_names = { 'sections', 'inactive_sections', 'tabline', 'winbar', 'inactive_winbar' }
-  for _, section in ipairs(sec_names) do
-    load_sections(config[section], config.options)
-  end
+  load_sections(config.sections, config.options)
+  load_sections(config.inactive_sections, config.options)
+  load_sections(config.tabline, config.options)
 end
 
 ---loads all the extensions
----@param config table user config
+---@param config table user confif
 local function load_extensions(config)
   local loaded_extensions = {}
-  local sec_names = { 'sections', 'inactive_sections', 'winbar', 'inactive_winbar' }
   for _, extension in pairs(config.extensions) do
     if type(extension) == 'string' then
-      local ok
-      ok, extension = pcall(require, 'lualine.extensions.' .. extension)
-      if not ok then
+      local ok, local_extension = pcall(require, 'lualine.extensions.' .. extension)
+      if ok then
+        local_extension = modules.utils.deepcopy(local_extension)
+        load_sections(local_extension.sections, config.options)
+        if local_extension.inactive_sections then
+          load_sections(local_extension.inactive_sections, config.options)
+        end
+        if type(local_extension.init) == 'function' then
+          local_extension.init()
+        end
+        table.insert(loaded_extensions, local_extension)
+      else
         modules.notice.add_notice(string.format(
           [[
 ### Extensions
@@ -178,13 +223,11 @@ Extension named `%s` was not found . Check if spelling is correct.
           extension
         ))
       end
-    end
-    if type(extension) == 'table' then
+    elseif type(extension) == 'table' then
       local local_extension = modules.utils.deepcopy(extension)
-      for _, section in ipairs(sec_names) do
-        if local_extension[section] then
-          load_sections(local_extension[section], config.options)
-        end
+      load_sections(local_extension.sections, config.options)
+      if local_extension.inactive_sections then
+        load_sections(local_extension.inactive_sections, config.options)
       end
       if type(local_extension.init) == 'function' then
         local_extension.init()
@@ -198,17 +241,14 @@ end
 ---loads sections and extensions or entire user config
 ---@param config table user config
 local function load_all(config)
-  require('lualine.component')._reset_components()
-  modules.fn_store.clear_fns()
-  require('lualine.utils.nvim_opts').reset_cache()
   load_components(config)
   load_extensions(config)
 end
 
 ---loads a theme from lua module
----prioritizes external themes (from user config or other plugins) over the bundled ones
+---priotizes external themes (from user config or other plugins) over the bundled ones
 ---@param theme_name string
----@return table theme definition from module
+---@return table theme defination from module
 local function load_theme(theme_name)
   assert(is_valid_filename(theme_name), 'Invalid filename')
   local retval
@@ -226,11 +266,6 @@ local function load_theme(theme_name)
     -- when only one is found run that and return it's return value
     retval = dofile(files[1])
   else
-    -- put entries from user config path in front
-    local user_config_path = vim.fn.stdpath('config')
-    table.sort(files, function(a, b)
-      return vim.startswith(a, user_config_path) or not vim.startswith(b, user_config_path)
-    end)
     -- More then 1 found . Use the first one that isn't in lualines repo
     local lualine_repo_pattern = table.concat({ 'lualine.nvim', 'lua', 'lualine' }, sep)
     local file_found = false

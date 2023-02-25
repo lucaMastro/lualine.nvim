@@ -8,11 +8,11 @@ Object.__index = Object
 function Object:init(...) end
 -- luacheck: pop
 
----Extend base class to create a child class
+---Extened base class to create a child class
 function Object:extend()
   local cls = {}
   for k, v in pairs(self) do
-    if k:find('__') == 1 then
+    if k:find '__' == 1 then
       cls[k] = v
     end
   end

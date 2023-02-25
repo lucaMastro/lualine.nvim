@@ -2,7 +2,6 @@
 -- MIT license, see LICENSE for more details.
 -- Credit: itchyny(lightline)
 -- License: MIT License
-local background = vim.opt.background:get()
-local style = vim.g.ayucolor or ((background == 'dark') and vim.g.ayuprefermirage and 'mirage' or background)
+local style = vim.g.ayucolor or 'dark'
 
 return require('lualine.themes.ayu_' .. style)
